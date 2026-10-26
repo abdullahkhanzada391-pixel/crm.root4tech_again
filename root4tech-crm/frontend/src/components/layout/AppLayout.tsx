@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Outlet } from 'react-router-dom';
 import { Sidebar } from './Sidebar';
 import { Header } from './Header';
+import { MobileBottomNav } from './MobileBottomNav';
 
 export const AppLayout: React.FC = () => {
   const [isCollapsed, setIsCollapsed] = useState(false);
@@ -9,7 +10,7 @@ export const AppLayout: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-slate-50 flex">
-      {/* Sidebar */}
+      {/* Sidebar Drawer */}
       <Sidebar
         isCollapsed={isCollapsed}
         onToggleCollapse={() => setIsCollapsed(!isCollapsed)}
@@ -24,10 +25,16 @@ export const AppLayout: React.FC = () => {
         }`}
       >
         <Header onToggleMobileMenu={() => setIsMobileOpen(true)} />
-        <main className="flex-1 p-3 sm:p-5 md:p-6 max-w-7xl w-full mx-auto min-w-0 overflow-x-hidden">
+        <main className="flex-1 p-3 sm:p-5 md:p-6 pb-24 lg:pb-6 max-w-7xl w-full mx-auto min-w-0 overflow-x-hidden">
           <Outlet />
         </main>
       </div>
+
+      {/* Sticky Mobile Bottom Navigation Dock */}
+      <MobileBottomNav
+        isMobileOpen={isMobileOpen}
+        onOpenMobileMenu={() => setIsMobileOpen(true)}
+      />
     </div>
   );
 };

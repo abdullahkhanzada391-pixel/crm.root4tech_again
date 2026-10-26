@@ -77,16 +77,18 @@ export const Header: React.FC<HeaderProps> = ({ onToggleMobileMenu }) => {
 
         {/* Top Right Utilities: Search, Calendar, and Notification Center */}
         <div className="flex items-center gap-3 sm:gap-4">
-          {/* Search bar */}
-          <div
+          {/* Search bar trigger */}
+          <button
+            type="button"
             onClick={() => setIsCommandPaletteOpen(true)}
-            className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-50 hover:bg-slate-100 border border-slate-200/80 text-xs text-slate-400 cursor-pointer transition w-36 sm:w-56 md:w-64 shadow-2xs group"
+            className="flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 py-1.5 rounded-xl bg-slate-50 hover:bg-slate-100 border border-slate-200/80 text-xs text-slate-500 cursor-pointer transition sm:w-56 md:w-64 shadow-2xs group active:scale-95"
             title="Search... (Ctrl+K)"
+            aria-label="Open Omnisearch"
           >
             <Search className="w-4 h-4 text-slate-400 group-hover:text-blue-600 transition shrink-0" />
-            <span className="text-slate-500 font-normal">Search...</span>
+            <span className="hidden min-[400px]:inline text-slate-500 font-normal">Search...</span>
             <kbd className="hidden sm:inline-block ml-auto text-[10px] font-mono font-semibold px-1.5 py-0.5 rounded bg-white border border-slate-200 text-slate-400">Ctrl K</kbd>
-          </div>
+          </button>
 
           {/* Calendar Badge */}
           <div className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-50 border border-slate-200/80 text-xs text-slate-600 font-medium">

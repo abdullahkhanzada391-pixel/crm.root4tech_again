@@ -16,6 +16,7 @@ import {
   Phone,
   Mail,
   Building,
+  Briefcase,
   Globe,
   FileText,
   AlertCircle,
@@ -860,7 +861,7 @@ export const LeadsPage: React.FC = () => {
 
       {/* Dynamic View: Kanban Board vs Table Grid */}
       {viewMode === 'kanban' ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3.5 items-start">
+        <div className="flex md:grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3.5 items-start overflow-x-auto touch-pan-x pb-4">
           {stageFlow.map((st) => {
             const stageLeads = filteredLeads.filter((l) => l.status === st);
             const getStageHeaderStyle = (stage: LeadStatus) => {
@@ -914,7 +915,7 @@ export const LeadsPage: React.FC = () => {
             return (
               <div
                 key={st}
-                className="bg-slate-100/70 border border-slate-200/90 rounded-2xl p-3.5 space-y-3 flex flex-col min-h-[480px] shadow-xs"
+                className="w-[85vw] sm:w-[320px] md:w-auto shrink-0 md:shrink bg-slate-100/70 border border-slate-200/90 rounded-2xl p-3.5 space-y-3 flex flex-col min-h-[480px] shadow-xs"
               >
                 {/* Stage Header */}
                 <div className="flex items-center justify-between pb-2.5 border-b border-slate-200">
@@ -1104,7 +1105,175 @@ export const LeadsPage: React.FC = () => {
           </div>
         )}
 
-        <div className="overflow-x-auto">
+        {/* Mobile View: High-Usability Touch Cards for Leads (Visible on < lg) */}
+        <div className="block lg:hidden divide-y divide-slate-100">
+          {paginatedLeads.map((lead) => {
+            const isSelected = selectedLeadIds.includes(lead.id);
+            const dupInfo = duplicateLeadMap.get(lead.id);
+            return (
+              <div
+                key={lead.id}
+                className={`p-3.5 space-y-3 transition-colors ${
+                  isSelected ? 'bg-blue-50/70' : 'hover:bg-slate-50/60'
+                }`}
+              >
+                {/* Header: Checkbox, Name, Duplicate, Status */}
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex items-start gap-2.5 min-w-0">
+                    <button
+                      type="button"
+                      onClick={() => toggleSelectOne(lead.id)}
+                      className="p-1 -ml-1 text-slate-400 hover:text-slate-600 shrink-0 touch-manipulation"
+                      aria-label="Select lead"
+                    >
+                      {isSelected ? (
+                        <CheckSquare className="w-5 h-5 text-blue-600" />
+                      ) : (
+                        <Square className="w-5 h-5 text-slate-300" />
+                      )}
+                    </button>
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span className="font-bold text-slate-900 text-sm">{lead.name}</span>
+                        {dupInfo && (
+                          <span
+                            title={dupInfo.details}
+                            className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200"
+                          >
+                            <AlertTriangle className="w-3 h-3 text-amber-600" />
+                            <span>Dup</span>
+                          </span>
+                        )}
+                      </div>
+                      <div className="text-xs text-slate-600 font-medium truncate mt-0.5">
+                        {lead.company} {lead.country ? `· ${lead.country}` : ''}
+                      </div>
+                    </div>
+                  </div>
+
+                  <span
+                    className={`inline-block px-2.5 py-0.5 rounded-full text-[10px] font-bold shrink-0 border ${getStatusBadge(
+                      lead.status
+                    )}`}
+                  >
+                    {lead.status}
+                  </span>
+                </div>
+
+                {/* Service Tag */}
+                <div className="flex items-center gap-2 text-xs text-blue-700 font-semibold bg-blue-50/70 border border-blue-100 rounded-lg px-2.5 py-1.5">
+                  <Briefcase className="w-3.5 h-3.5 shrink-0 text-blue-600" />
+                  <span className="truncate">{lead.interestedService}</span>
+                </div>
+
+                {/* Contact Strip with 1-Tap Touch Buttons */}
+                <div className="flex items-center gap-2 pt-0.5 flex-wrap">
+                  {lead.phone && (
+                    <a
+                      href={`tel:${lead.phone.replace(/[^0-9+]/g, '')}`}
+                      className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-mono font-medium border border-slate-200 transition"
+                    >
+                      <Phone className="w-3.5 h-3.5 text-blue-600 shrink-0" />
+                      <span className="truncate max-w-[130px]">{lead.phone}</span>
+                    </a>
+                  )}
+
+                  {lead.phone && (
+                    <a
+                      href={`https://wa.me/${lead.phone.replace(/[^0-9]/g, '')}?text=${encodeURIComponent(`Hi ${lead.name}, this is ROOT 4 TECH regarding your inquiry for ${lead.interestedService}.`)}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-700 text-xs font-semibold border border-emerald-200 transition"
+                    >
+                      <MessageSquare className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                      <span>WhatsApp</span>
+                    </a>
+                  )}
+
+                  {lead.email && (
+                    <a
+                      href={`mailto:${lead.email}`}
+                      className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600 text-xs border border-slate-200 transition"
+                      title={lead.email}
+                    >
+                      <Mail className="w-3.5 h-3.5 text-slate-500 shrink-0" />
+                      <span className="truncate max-w-[120px]">{lead.email}</span>
+                    </a>
+                  )}
+                </div>
+
+                {/* Bottom Action Buttons */}
+                <div className="flex items-center justify-between pt-1 border-t border-slate-100 text-xs">
+                  <span className="text-[10px] text-slate-400 font-medium">
+                    Added: {lead.dateAdded}
+                  </span>
+
+                  <div className="flex items-center gap-1">
+                    {lead.status !== 'Converted' ? (
+                      <button
+                        type="button"
+                        onClick={() => handleAdvanceStage(lead)}
+                        className="px-2 py-1 rounded-lg bg-blue-50 text-blue-700 border border-blue-200 font-bold text-[11px] flex items-center gap-1 transition"
+                      >
+                        <span>Advance</span>
+                        <ArrowRight className="w-3 h-3" />
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => handleConvert(lead)}
+                        className="px-2 py-1 rounded-lg bg-emerald-600 text-white font-bold text-[11px] flex items-center gap-1 shadow-2xs"
+                      >
+                        <UserCheck className="w-3 h-3" />
+                        <span>Convert</span>
+                      </button>
+                    )}
+
+                    <button
+                      type="button"
+                      onClick={() => setViewingLead(lead)}
+                      className="p-1.5 rounded-lg bg-slate-100 text-slate-700 hover:bg-slate-200 transition"
+                      title="View Lead"
+                    >
+                      <Eye className="w-3.5 h-3.5" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => openEditModal(lead)}
+                      className="p-1.5 rounded-lg bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border border-indigo-200 transition"
+                      title="Edit Lead"
+                    >
+                      <Edit2 className="w-3.5 h-3.5" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setLeadToDelete(lead)}
+                      className="p-1.5 rounded-lg bg-rose-50 text-rose-700 hover:bg-rose-100 border border-rose-200 transition"
+                      title="Delete Lead"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+
+          {filteredLeads.length === 0 && (
+            <div className="py-12 px-4 text-center">
+              <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center text-slate-400 mx-auto mb-2">
+                <Filter className="w-5 h-5" />
+              </div>
+              <p className="text-sm font-semibold text-slate-700">No leads found</p>
+              <p className="text-xs text-slate-400 mt-0.5">
+                Try clearing search filters or add a new prospective lead.
+              </p>
+            </div>
+          )}
+        </div>
+
+        {/* Desktop View: Full Data Table (Visible on >= lg) */}
+        <div className="hidden lg:block overflow-x-auto">
           <table className="w-full text-left text-xs border-collapse">
             <thead>
               <tr className="bg-slate-50 border-b border-slate-200 text-slate-600 font-semibold uppercase text-[11px] tracking-wider">

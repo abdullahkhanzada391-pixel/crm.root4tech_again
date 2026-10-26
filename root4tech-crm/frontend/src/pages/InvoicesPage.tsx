@@ -742,8 +742,112 @@ export const InvoicesPage: React.FC = () => {
               </div>
             </div>
 
-            {/* All Invoices Table */}
-            <div className="overflow-x-auto">
+            {/* Mobile View: High-Usability Touch Cards for Invoices (< md) */}
+            <div className="block md:hidden divide-y divide-slate-100">
+              {paginatedInvoices.map((inv) => {
+                const isPaid = inv.status === 'Paid';
+                const isOverdue = inv.status === 'Overdue';
+
+                return (
+                  <div key={inv.id} className="p-4 space-y-3 hover:bg-slate-50/60 transition">
+                    <div className="flex items-start justify-between gap-2">
+                      <div>
+                        <span className="font-mono font-bold text-blue-600 text-sm block">
+                          {inv.invoiceNumber}
+                        </span>
+                        <div className="font-bold text-slate-900 text-xs mt-0.5">{inv.clientName}</div>
+                        {inv.companyName && (
+                          <div className="text-[11px] text-slate-500 font-medium">{inv.companyName}</div>
+                        )}
+                      </div>
+
+                      <span
+                        className={`inline-block px-2.5 py-0.5 rounded-full text-[10px] font-bold border shrink-0 ${
+                          isPaid
+                            ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                            : isOverdue
+                            ? 'bg-rose-50 text-rose-700 border-rose-200'
+                            : 'bg-amber-50 text-amber-700 border-amber-200'
+                        }`}
+                      >
+                        {inv.status}
+                      </span>
+                    </div>
+
+                    <div className="text-xs text-slate-700 bg-slate-50 border border-slate-200/80 rounded-lg p-2.5 truncate">
+                      {inv.service}
+                    </div>
+
+                    <div className="flex items-center justify-between text-xs pt-0.5">
+                      <div>
+                        <span className="text-[10px] text-slate-400 block uppercase font-bold">Total Amount</span>
+                        <span className="text-base font-bold text-slate-900 font-mono">
+                          PKR {inv.amount.toLocaleString()}
+                        </span>
+                      </div>
+                      <div className="text-right text-[11px] text-slate-500">
+                        <div>Issue: {inv.issueDate}</div>
+                        <div className={isOverdue ? 'text-rose-600 font-bold' : 'text-slate-400'}>
+                          Due: {inv.dueDate}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Touch Action Buttons */}
+                    <div className="flex items-center justify-end gap-1.5 pt-2 border-t border-slate-100">
+                      <button
+                        type="button"
+                        onClick={() => handleTogglePaid(inv)}
+                        className={`px-2.5 py-1.5 rounded-lg border text-xs font-bold transition flex items-center gap-1 shadow-2xs ${
+                          isPaid
+                            ? 'bg-amber-50 text-amber-700 hover:bg-amber-600 hover:text-white border-amber-200'
+                            : 'bg-emerald-50 text-emerald-700 hover:bg-emerald-600 hover:text-white border-emerald-200'
+                        }`}
+                      >
+                        {isPaid ? <RotateCcw className="w-3.5 h-3.5" /> : <Check className="w-3.5 h-3.5" />}
+                        <span>{isPaid ? 'Unpay' : 'Mark Paid'}</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => handleOpenPreview(inv)}
+                        className="px-2.5 py-1.5 rounded-lg bg-blue-50 text-blue-700 hover:bg-blue-600 hover:text-white border border-blue-200 text-xs font-bold transition flex items-center gap-1 shadow-2xs"
+                      >
+                        <Eye className="w-3.5 h-3.5" />
+                        <span>Preview</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => handleOpenEdit(inv)}
+                        className="p-1.5 rounded-lg bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border border-indigo-200 transition"
+                        title="Edit Invoice"
+                      >
+                        <Edit2 className="w-3.5 h-3.5" />
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => setInvoiceToDelete(inv)}
+                        className="p-1.5 rounded-lg bg-rose-50 text-rose-700 hover:bg-rose-100 border border-rose-200 transition"
+                        title="Delete Invoice"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+
+              {filteredInvoices.length === 0 && (
+                <div className="py-12 text-center text-slate-400 text-xs">
+                  No invoices found matching your criteria.
+                </div>
+              )}
+            </div>
+
+            {/* Desktop View: Full Invoices Table (Visible on >= md) */}
+            <div className="hidden md:block overflow-x-auto">
               <table className="w-full text-left text-xs text-slate-700">
                 <thead className="bg-slate-50/80 border-b border-slate-200/80 text-slate-500 uppercase text-[10px] tracking-wider font-bold">
                   <tr>
@@ -1431,8 +1535,10 @@ export const InvoicesPage: React.FC = () => {
             </div>
           </div>
 
-          {/* Render the Official Root 4 Tech Invoice Layout (NO Paid or Pending written on it) */}
-          <Root4TechInvoiceDocument invoice={selectedInvoice} />
+          {/* Render the Official Root 4 Tech Invoice Layout with Touch-Friendly Scroll Container */}
+          <div className="overflow-x-auto touch-pan-x pb-8">
+            <Root4TechInvoiceDocument invoice={selectedInvoice} />
+          </div>
         </div>
       )}
     </div>

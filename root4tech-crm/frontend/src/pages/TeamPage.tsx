@@ -437,8 +437,8 @@ export const TeamPage: React.FC = () => {
         </div>
 
         {/* Filter Pills & View Mode */}
-        <div className="flex items-center justify-between md:justify-end gap-2 flex-wrap">
-          <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-lg text-xs font-semibold">
+        <div className="flex items-center justify-between md:justify-end gap-2 flex-wrap max-w-full">
+          <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-lg text-xs font-semibold overflow-x-auto touch-pan-x max-w-full">
             <button
               onClick={() => setSelectedRoleFilter('all')}
               className={`px-2.5 py-1 rounded-md transition ${

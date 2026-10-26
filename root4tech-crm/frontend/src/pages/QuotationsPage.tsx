@@ -410,9 +410,122 @@ export const QuotationsPage: React.FC = () => {
         </div>
       </div>
 
-      {/* Quotations Table */}
-      <div className="rounded-xl bg-white border border-slate-200 shadow-xs">
-        <div className="overflow-x-auto min-h-[300px] pb-12">
+      {/* Quotations Table & Mobile Cards */}
+      <div className="rounded-xl bg-white border border-slate-200 shadow-xs overflow-hidden">
+        {/* Mobile View: High-Usability Touch Cards for Quotations (< md) */}
+        <div className="block md:hidden divide-y divide-slate-100">
+          {filteredQuotes.map((q) => {
+            const isSelected = selectedQuoteIds.includes(q.id);
+            return (
+              <div
+                key={q.id}
+                className={`p-4 space-y-3 transition-colors ${
+                  isSelected ? 'bg-indigo-50/40' : 'hover:bg-slate-50/60'
+                }`}
+              >
+                {/* Header: Checkbox, Quote Number, Status Badge */}
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      checked={isSelected}
+                      onChange={() => handleToggleSelectQuote(q.id)}
+                      aria-label={`Select quotation ${q.quoteNumber}`}
+                      className="rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer w-4 h-4"
+                    />
+                    <div>
+                      <span className="font-bold text-blue-600 font-mono text-sm block">
+                        {q.quoteNumber}
+                      </span>
+                      <span className="text-xs text-slate-500 font-medium">
+                        {q.companyName} {q.clientName ? `· ${q.clientName}` : ''}
+                      </span>
+                    </div>
+                  </div>
+
+                  <span
+                    className={`inline-block px-2.5 py-0.5 rounded-full text-[10px] font-bold border shrink-0 ${getStatusBadge(
+                      q.status
+                    )}`}
+                  >
+                    {q.status}
+                  </span>
+                </div>
+
+                {/* Service Scope Pill */}
+                <div className="flex items-center justify-between text-xs bg-slate-50 border border-slate-200/80 rounded-lg p-2.5">
+                  <span className="font-medium text-slate-800 truncate pr-2">{q.service}</span>
+                  {q.items && q.items.length > 1 && (
+                    <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-200 shrink-0">
+                      {q.items.length} items
+                    </span>
+                  )}
+                </div>
+
+                {/* Amount and Dates */}
+                <div className="flex items-center justify-between text-xs pt-0.5">
+                  <div>
+                    <span className="text-[10px] text-slate-400 block uppercase font-bold">Total Amount</span>
+                    <span className="text-base font-bold text-slate-900 font-mono">
+                      PKR {q.amount.toLocaleString()}
+                    </span>
+                  </div>
+                  <div className="text-right text-[11px] text-slate-500">
+                    <div>Issued: {q.dateIssued}</div>
+                    <div className="text-slate-400">Valid: {q.validUntil}</div>
+                  </div>
+                </div>
+
+                {/* Mobile Action Buttons */}
+                <div className="flex items-center justify-end gap-1.5 pt-2 border-t border-slate-100">
+                  {q.status !== 'Accepted' && (
+                    <button
+                      type="button"
+                      onClick={() => handleAcceptQuote(q)}
+                      className="px-2.5 py-1.5 rounded-lg bg-emerald-50 text-emerald-700 hover:bg-emerald-600 hover:text-white border border-emerald-200 text-xs font-bold transition flex items-center gap-1 shadow-2xs"
+                    >
+                      <CheckSquare className="w-3.5 h-3.5" />
+                      <span>Accept</span>
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => setViewingQuote(q)}
+                    className="px-2.5 py-1.5 rounded-lg bg-blue-50 text-blue-700 hover:bg-blue-600 hover:text-white border border-blue-200 text-xs font-bold transition flex items-center gap-1 shadow-2xs"
+                  >
+                    <Eye className="w-3.5 h-3.5" />
+                    <span>View</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => openEditModal(q)}
+                    className="p-1.5 rounded-lg bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border border-indigo-200 transition"
+                    title="Edit Quote"
+                  >
+                    <Edit2 className="w-3.5 h-3.5" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setQuoteToDelete(q)}
+                    className="p-1.5 rounded-lg bg-rose-50 text-rose-700 hover:bg-rose-100 border border-rose-200 transition"
+                    title="Delete Quote"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              </div>
+            );
+          })}
+
+          {filteredQuotes.length === 0 && (
+            <div className="py-12 text-center text-slate-400 text-xs">
+              No quotations found matching your search.
+            </div>
+          )}
+        </div>
+
+        {/* Desktop View: Full Table (Visible on >= md) */}
+        <div className="hidden md:block overflow-x-auto min-h-[300px] pb-12">
           <table className="w-full text-left text-xs border-collapse">
             <thead>
               <tr className="bg-slate-50 border-b border-slate-200 text-slate-600 font-semibold uppercase text-[11px] tracking-wider">

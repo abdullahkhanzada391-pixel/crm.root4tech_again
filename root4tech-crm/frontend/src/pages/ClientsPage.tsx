@@ -178,9 +178,108 @@ export const ClientsPage: React.FC = () => {
         </div>
       </div>
 
-      {/* Professional Clients Table */}
+      {/* Professional Clients Table / Mobile Cards */}
       <div className="rounded-xl bg-white border border-slate-200 shadow-xs overflow-hidden">
-        <div className="overflow-x-auto">
+        {/* Mobile View: High-Usability Touch Cards for Clients (< md) */}
+        <div className="block md:hidden divide-y divide-slate-100">
+          {filteredClients.map((client) => (
+            <div key={client.id} className="p-4 space-y-3 hover:bg-slate-50/60 transition">
+              <div className="flex items-start justify-between gap-2">
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-700 border border-emerald-200 font-bold text-xs flex items-center justify-center shrink-0">
+                    {client.name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()}
+                  </div>
+                  <div className="min-w-0">
+                    <div className="text-sm font-bold text-slate-900 truncate">
+                      {client.name}
+                    </div>
+                    <div className="text-xs text-slate-500 font-medium truncate">
+                      {client.company} {client.country ? `· ${client.country}` : ''}
+                    </div>
+                  </div>
+                </div>
+
+                <span
+                  className={`inline-block px-2.5 py-0.5 rounded-full text-[10px] font-bold border shrink-0 ${getStatusBadge(
+                    client.status
+                  )}`}
+                >
+                  {client.status}
+                </span>
+              </div>
+
+              {/* Service Tag */}
+              <div className="text-xs text-emerald-800 font-medium bg-emerald-50/70 border border-emerald-100 rounded-lg px-2.5 py-1.5 flex items-center gap-1.5">
+                <Briefcase className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                <span className="truncate">{client.service}</span>
+              </div>
+
+              {/* Contact and Actions Row */}
+              <div className="flex items-center justify-between pt-1 border-t border-slate-100 gap-2 flex-wrap">
+                <div className="flex items-center gap-2">
+                  {client.phone && (
+                    <a
+                      href={`tel:${client.phone.replace(/[^0-9+]/g, '')}`}
+                      className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-mono font-medium border border-slate-200"
+                    >
+                      <Phone className="w-3.5 h-3.5 text-emerald-600" />
+                      <span className="truncate max-w-[120px]">{client.phone}</span>
+                    </a>
+                  )}
+                  {client.email && (
+                    <a
+                      href={`mailto:${client.email}`}
+                      className="p-2 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600 border border-slate-200"
+                      title={client.email}
+                    >
+                      <Mail className="w-3.5 h-3.5 text-slate-500" />
+                    </a>
+                  )}
+                </div>
+
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={() => navigate('/quotations')}
+                    className="px-2.5 py-1.5 rounded-lg bg-blue-50 text-blue-700 hover:bg-blue-600 hover:text-white border border-blue-200 text-xs font-bold transition flex items-center gap-1 shadow-2xs"
+                  >
+                    <FileText className="w-3.5 h-3.5" />
+                    <span>Quote</span>
+                  </button>
+                  <button
+                    onClick={() => setViewingClient(client)}
+                    className="p-1.5 rounded-lg bg-slate-100 text-slate-600 hover:bg-slate-200 transition"
+                    title="View Details"
+                  >
+                    <Eye className="w-3.5 h-3.5" />
+                  </button>
+                  <button
+                    onClick={() => openEditModal(client)}
+                    className="p-1.5 rounded-lg bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border border-indigo-200 transition"
+                    title="Edit Client"
+                  >
+                    <Edit2 className="w-3.5 h-3.5" />
+                  </button>
+                  <button
+                    onClick={() => handleDelete(client.id, client.name)}
+                    className="p-1.5 rounded-lg bg-rose-50 text-rose-700 hover:bg-rose-100 border border-rose-200 transition"
+                    title="Delete Client"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              </div>
+            </div>
+          ))}
+
+          {filteredClients.length === 0 && (
+            <div className="py-12 text-center text-slate-400 text-xs">
+              No clients found.
+            </div>
+          )}
+        </div>
+
+        {/* Desktop View: Full Table (Visible on >= md) */}
+        <div className="hidden md:block overflow-x-auto">
           <table className="w-full text-left text-xs border-collapse">
             <thead>
               <tr className="bg-slate-50 border-b border-slate-200 text-slate-600 font-semibold uppercase text-[11px] tracking-wider">
