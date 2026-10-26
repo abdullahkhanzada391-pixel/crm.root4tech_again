@@ -6,7 +6,9 @@ import {
   Mail,
   ArrowRight,
   ShieldCheck,
-  AlertCircle
+  AlertCircle,
+  KeyRound,
+  Sparkles
 } from 'lucide-react';
 import { Root4TechLogo } from '@/components/common/Root4TechLogo';
 
@@ -36,7 +38,14 @@ export const LoginPage: React.FC = () => {
       } else {
         setErrorMsg(result.error || 'Invalid email address or password. Please try again.');
       }
-    }, 350);
+    }, 250);
+  };
+
+  // Quick Demo Autofill Helper
+  const handleQuickFill = (demoEmail: string, demoPass: string) => {
+    setEmail(demoEmail);
+    setPassword(demoPass);
+    setErrorMsg(null);
   };
 
   return (
@@ -44,7 +53,7 @@ export const LoginPage: React.FC = () => {
       {/* Background Ambience / Glows */}
       <div className="absolute -top-40 -left-40 w-96 h-96 bg-blue-600/20 rounded-full blur-3xl pointer-events-none"></div>
       <div className="absolute top-1/2 -right-40 w-96 h-96 bg-indigo-600/20 rounded-full blur-3xl pointer-events-none"></div>
-      <div className="absolute -bottom-40 left-1/3 w-96 h-96 bg-emerald-600/10 rounded-full blur-3xl pointer-events-none"></div>
+      <div className="absolute -bottom-40 left-1/3 w-96 h-96 bg-cyan-600/10 rounded-full blur-3xl pointer-events-none"></div>
 
       {/* Top Header */}
       <div className="max-w-7xl w-full mx-auto px-6 py-6 flex items-center justify-between relative z-10">
@@ -54,25 +63,25 @@ export const LoginPage: React.FC = () => {
 
         <div className="hidden sm:flex items-center gap-2 text-xs text-slate-400 bg-slate-800/80 px-3.5 py-1.5 rounded-full border border-slate-700/60 backdrop-blur">
           <ShieldCheck className="w-4 h-4 text-emerald-400" />
-          <span>Secure Sign-In Session</span>
+          <span>Role-Based Access Control</span>
         </div>
       </div>
 
       {/* Center Login Form Container */}
-      <div className="w-full max-w-md mx-auto px-4 sm:px-6 py-8 relative z-10 flex flex-col items-center">
-        <div className="w-full bg-slate-800/90 border border-slate-700/80 rounded-2xl p-7 sm:p-9 backdrop-blur-xl shadow-2xl space-y-6">
+      <div className="w-full max-w-md mx-auto px-4 sm:px-6 py-6 relative z-10 flex flex-col items-center">
+        <div className="w-full bg-slate-800/90 border border-slate-700/80 rounded-2xl p-7 sm:p-8 backdrop-blur-xl shadow-2xl space-y-5">
           <div className="text-center space-y-1.5">
             <h2 className="text-2xl font-black text-white tracking-tight">
-              Sign In to Your Account
+              Sign In to Your Workspace
             </h2>
             <p className="text-xs text-slate-400">
-              Enter your registered company email and password to access your role workspace.
+              Enter company credentials to access your auto-assigned dashboard.
             </p>
           </div>
 
           {/* Error Message */}
           {errorMsg && (
-            <div className="p-3.5 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-400 text-xs flex items-start gap-2.5 animate-shake">
+            <div className="p-3.5 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-400 text-xs flex items-start gap-2.5">
               <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
               <span>{errorMsg}</span>
             </div>
@@ -124,8 +133,8 @@ export const LoginPage: React.FC = () => {
                 <span>Remember me</span>
               </label>
 
-              <span className="text-[11px] text-slate-400">
-                Protected by RBAC
+              <span className="text-[11px] text-cyan-400 font-medium">
+                Dynamic Role Routing
               </span>
             </div>
 
@@ -138,12 +147,43 @@ export const LoginPage: React.FC = () => {
                 <span>Authenticating Credentials...</span>
               ) : (
                 <>
-                  <span>Sign In to Portal</span>
+                  <span>Sign In to Dashboard</span>
                   <ArrowRight className="w-4 h-4" />
                 </>
               )}
             </button>
           </form>
+
+          {/* Quick Demo Role Autofill Pills */}
+          <div className="pt-3 border-t border-slate-700/80 space-y-2">
+            <div className="flex items-center justify-between text-[11px] text-slate-400">
+              <span className="flex items-center gap-1 font-semibold text-slate-300">
+                <KeyRound className="w-3 h-3 text-amber-400" />
+                <span>1-Click Demo Accounts</span>
+              </span>
+              <span>Click to test role</span>
+            </div>
+
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5">
+              {[
+                { label: 'Admin', icon: '🛡️', email: 'admin@root4tech.com', pass: 'admin123' },
+                { label: 'Sales Exec', icon: '🎯', email: 'sales@root4tech.com', pass: 'sales123' },
+                { label: 'Marketing', icon: '🚀', email: 'marketing@root4tech.com', pass: 'marketing123' },
+                { label: 'Developer', icon: '💻', email: 'dev@root4tech.com', pass: 'dev123' },
+                { label: 'HR Manager', icon: '👥', email: 'hr@root4tech.com', pass: 'hr123' },
+              ].map(demo => (
+                <button
+                  key={demo.label}
+                  type="button"
+                  onClick={() => handleQuickFill(demo.email, demo.pass)}
+                  className="px-2.5 py-1.5 rounded-lg bg-slate-900/90 hover:bg-slate-700/80 border border-slate-700/70 text-slate-300 hover:text-white text-[11px] font-semibold text-left transition flex items-center gap-1.5"
+                >
+                  <span>{demo.icon}</span>
+                  <span className="truncate">{demo.label}</span>
+                </button>
+              ))}
+            </div>
+          </div>
         </div>
       </div>
 
@@ -151,7 +191,7 @@ export const LoginPage: React.FC = () => {
       <footer className="w-full max-w-7xl mx-auto px-6 py-6 border-t border-slate-800 text-center text-xs text-slate-500 relative z-10 flex flex-col sm:flex-row items-center justify-between gap-3">
         <p>© {new Date().getFullYear()} Root 4 Tech Pakistan (Pvt.) Ltd. All rights reserved.</p>
         <p className="font-mono text-[11px] text-slate-600">
-          Encrypted Authentication · PECHS, Karachi
+          Role-Based Access Control · Dynamic Dashboard Engine
         </p>
       </footer>
     </div>

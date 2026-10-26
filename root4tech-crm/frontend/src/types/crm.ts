@@ -221,7 +221,7 @@ export interface MarketingTask {
   completed: boolean;
 }
 
-export type UserRole = 'admin' | 'sales' | 'marketing' | 'custom' | string;
+export type UserRole = 'admin' | 'sales' | 'marketing' | 'developer' | 'hr' | 'custom' | string;
 
 export interface AuthUser {
   id: string;
@@ -233,14 +233,88 @@ export interface AuthUser {
   shift?: string;
   department: string;
   avatarInitials: string;
+  avatarUrl?: string;
   defaultRoute?: string;
   salary?: number;
   status?: 'Active' | 'Onboarding' | 'On Leave' | 'Inactive';
   joinDate?: string;
+  allowedModules?: string[];
+  skills?: string[];
+  notes?: string;
 }
 
 export interface UserAccount extends AuthUser {
   password: string;
   defaultRoute: string;
+}
+
+// ========================
+// DEVELOPER PORTAL TYPES
+// ========================
+export interface DeveloperProject {
+  id: string;
+  name: string;
+  clientName: string;
+  description: string;
+  status: 'In Progress' | 'Review' | 'Testing' | 'Completed' | 'Maintenance';
+  progress: number;
+  deadline: string;
+  techStack: string[];
+  repoUrl?: string;
+  branch?: string;
+  openIssuesCount: number;
+  completedTasksCount: number;
+  totalTasksCount: number;
+}
+
+export interface DeveloperTask {
+  id: string;
+  projectId?: string;
+  projectName: string;
+  title: string;
+  type: 'Feature' | 'Bugfix' | 'Refactor' | 'DevOps' | 'API';
+  priority: 'Urgent' | 'High' | 'Medium' | 'Low';
+  status: 'To Do' | 'In Progress' | 'Code Review' | 'Done';
+  deadline: string;
+  estimatedHours: number;
+  completed: boolean;
+  notes?: string;
+}
+
+export interface DeveloperActivity {
+  id: string;
+  title: string;
+  type: 'commit' | 'pr_merged' | 'deployment' | 'issue_resolved';
+  target: string;
+  timestamp: string;
+  author: string;
+}
+
+// ========================
+// HR PORTAL TYPES
+// ========================
+export interface HRTask {
+  id: string;
+  title: string;
+  category: 'Onboarding' | 'Payroll' | 'Recruitment' | 'Compliance' | 'Review';
+  priority: 'Urgent' | 'High' | 'Medium' | 'Low';
+  dueDate: string;
+  completed: boolean;
+  assignedTo?: string;
+  notes?: string;
+}
+
+export interface HRAttendanceRecord {
+  id: string;
+  userId: string;
+  userName: string;
+  department: string;
+  role: string;
+  shift: string;
+  date: string;
+  clockIn: string;
+  clockOut: string | null;
+  status: 'Present' | 'Late' | 'On Leave' | 'Absent';
+  hoursLogged: string;
 }
 

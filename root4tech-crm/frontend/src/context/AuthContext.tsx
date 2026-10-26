@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { AuthUser, UserRole, UserAccount } from '@/types/crm';
 import { INITIAL_USERS } from '@/data/mockData';
+import { getRoleDefaultRoute } from '@/utils/roleConfig';
 
 interface AuthContextType {
   user: AuthUser | null;
@@ -13,13 +14,15 @@ interface AuthContextType {
   updateUserProfile: (userId: string, data: Partial<UserAccount>) => boolean;
   addUser: (newUser: Omit<UserAccount, 'id'>) => boolean;
   deleteUser: (userId: string) => boolean;
+  toggleUserStatus: (userId: string) => boolean;
+  changeUserRole: (userId: string, newRole: UserRole) => boolean;
   resetUsersToDefaults: () => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 const AUTH_STORAGE_KEY = 'root4tech_crm_auth_user';
-const USERS_STORAGE_KEY = 'root4tech_crm_users_list';
+const USERS_STORAGE_KEY = 'root4tech_crm_users_list_v2';
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   // 1. Registered Users & Passwords list
@@ -27,7 +30,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const saved = localStorage.getItem(USERS_STORAGE_KEY);
     if (saved) {
       try {
-        return JSON.parse(saved);
+        const parsed: UserAccount[] = JSON.parse(saved);
+        // Ensure default developer and hr accounts exist in stored list if upgrading from old version
+        const hasDev = parsed.some(u => u.role === 'developer');
+        const hasHr = parsed.some(u => u.role === 'hr');
+        if (!hasDev || !hasHr) {
+          const merged = [...parsed];
+          INITIAL_USERS.forEach(initUser => {
+            if (!merged.some(u => u.id === initUser.id || u.email.toLowerCase() === initUser.email.toLowerCase())) {
+              merged.push(initUser);
+            }
+          });
+          return merged;
+        }
+        return parsed;
       } catch (e) {
         return INITIAL_USERS;
       }
@@ -74,13 +90,25 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         (cleanEmail.includes('sales') && u.role === 'sales') ||
         (cleanEmail.includes('hamza') && u.role === 'sales') ||
         (cleanEmail.includes('market') && u.role === 'marketing') ||
-        (cleanEmail.includes('ayesha') && u.role === 'marketing')
+        (cleanEmail.includes('ayesha') && u.role === 'marketing') ||
+        (cleanEmail.includes('dev') && u.role === 'developer') ||
+        (cleanEmail.includes('zain') && u.role === 'developer') ||
+        (cleanEmail.includes('hr') && u.role === 'hr') ||
+        (cleanEmail.includes('fatima') && u.role === 'hr')
     );
 
     if (!matched) {
       return {
         success: false,
         error: 'Invalid credentials. Please enter a valid registered company email.'
+      };
+    }
+
+    // Verify Account Status (Active vs Inactive)
+    if (matched.status === 'Inactive') {
+      return {
+        success: false,
+        error: 'This account has been deactivated by the administrator. Please contact IT or HR support.'
       };
     }
 
@@ -99,18 +127,25 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       };
     }
 
-    setUser(matched);
+    const assignedRoute = matched.defaultRoute || getRoleDefaultRoute(matched.role);
+    const updatedUserSession: UserAccount = {
+      ...matched,
+      defaultRoute: assignedRoute
+    };
+
+    setUser(updatedUserSession);
     return {
       success: true,
-      redirectRoute: matched.defaultRoute
+      redirectRoute: assignedRoute
     };
   };
 
   // 1-Click Instant Demo Login
   const loginAsRole = (role: UserRole): string => {
-    const target = users.find(u => u.role === role) || users[0];
-    setUser(target);
-    return target.defaultRoute;
+    const target = users.find(u => u.role === role && u.status !== 'Inactive') || users.find(u => u.role === role) || users[0];
+    const route = target.defaultRoute || getRoleDefaultRoute(target.role);
+    setUser({ ...target, defaultRoute: route });
+    return route;
   };
 
   const logout = () => {
@@ -139,21 +174,104 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // Update User Details
   const updateUserProfile = (userId: string, data: Partial<UserAccount>): boolean => {
     setUsers(prev =>
-      prev.map(u => (u.id === userId ? { ...u, ...data } : u))
+      prev.map(u => {
+        if (u.id !== userId) return u;
+        
+        // If role was changed and defaultRoute wasn't explicitly overridden, automatically assign new role's dashboard
+        let newRoute = data.defaultRoute || u.defaultRoute;
+        if (data.role && data.role !== u.role && !data.defaultRoute) {
+          newRoute = getRoleDefaultRoute(data.role);
+        }
+
+        const updated: UserAccount = {
+          ...u,
+          ...data,
+          defaultRoute: newRoute
+        };
+        return updated;
+      })
     );
+
     if (user && user.id === userId) {
-      setUser(prev => (prev ? { ...prev, ...data } : null));
+      const updatedRoute = data.role && data.role !== user.role && !data.defaultRoute
+        ? getRoleDefaultRoute(data.role)
+        : (data.defaultRoute || user.defaultRoute || getRoleDefaultRoute(data.role || user.role));
+
+      setUser(prev => (prev ? { ...prev, ...data, defaultRoute: updatedRoute } : null));
     }
     return true;
   };
 
-  // Add New User Account
+  // Add New User Account (Automatic Dashboard Assignment)
   const addUser = (newUser: Omit<UserAccount, 'id'>): boolean => {
+    const assignedRoute = newUser.defaultRoute || getRoleDefaultRoute(newUser.role);
+    const initials = newUser.avatarInitials || newUser.name
+      .split(' ')
+      .map(n => n[0])
+      .join('')
+      .toUpperCase()
+      .slice(0, 2) || 'TM';
+
     const userWithId: UserAccount = {
       ...newUser,
-      id: `usr-${Date.now()}`
+      id: `usr-${Date.now()}`,
+      status: newUser.status || 'Active',
+      defaultRoute: assignedRoute,
+      avatarInitials: initials,
+      joinDate: newUser.joinDate || new Date().toISOString().split('T')[0]
     };
+
     setUsers(prev => [...prev, userWithId]);
+    return true;
+  };
+
+  // Toggle user active / inactive status
+  const toggleUserStatus = (userId: string): boolean => {
+    // Prevent deactivating own account if only admin
+    if (user && user.id === userId && user.role === 'admin') {
+      const otherActiveAdmins = users.filter(u => u.role === 'admin' && u.id !== userId && u.status === 'Active');
+      if (otherActiveAdmins.length === 0) {
+        return false;
+      }
+    }
+
+    setUsers(prev =>
+      prev.map(u => {
+        if (u.id === userId) {
+          const newStatus = u.status === 'Active' ? 'Inactive' : 'Active';
+          return { ...u, status: newStatus };
+        }
+        return u;
+      })
+    );
+
+    if (user && user.id === userId) {
+      setUser(prev => prev ? { ...prev, status: prev.status === 'Active' ? 'Inactive' : 'Active' } : null);
+    }
+
+    return true;
+  };
+
+  // Change user role and automatically update their dashboard and permissions
+  const changeUserRole = (userId: string, newRole: UserRole): boolean => {
+    const newRoute = getRoleDefaultRoute(newRole);
+    setUsers(prev =>
+      prev.map(u => {
+        if (u.id === userId) {
+          return {
+            ...u,
+            role: newRole,
+            defaultRoute: newRoute
+          };
+        }
+        return u;
+      })
+    );
+
+    if (user && user.id === userId) {
+      setUser(prev => prev ? { ...prev, role: newRole, defaultRoute: newRoute } : null);
+    }
+
     return true;
   };
 
@@ -183,6 +301,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         updateUserProfile,
         addUser,
         deleteUser,
+        toggleUserStatus,
+        changeUserRole,
         resetUsersToDefaults
       }}
     >
