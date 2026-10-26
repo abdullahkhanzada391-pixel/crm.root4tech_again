@@ -2,7 +2,6 @@ import React from 'react';
 import { Navigate, useLocation, Outlet } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import { UserRole } from '@/types/crm';
-import { getRoleDefaultRoute } from '@/utils/roleConfig';
 
 interface ProtectedRouteProps {
   allowedRoles?: UserRole[];
@@ -17,24 +16,26 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ allowedRoles, ch
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
-  // If user account is inactive, deny access and force logout to login page
-  if (user.status === 'Inactive') {
-    return <Navigate to="/login" replace />;
-  }
-
-  // Admins always have unrestricted access to all routes and portal previews
+  // Admins always have access to all routes
   if (user.role === 'admin') {
     return children ? <>{children}</> : <Outlet />;
   }
 
-  // If specific roles are required, enforce strict RBAC permissions
+  // If specific roles are required, ensure user has permission
   if (allowedRoles && allowedRoles.length > 0) {
-    const hasRole = allowedRoles.includes(user.role);
+    const hasRole =
+      allowedRoles.includes(user.role) ||
+      (allowedRoles.includes('admin') && user.role !== 'sales' && user.role !== 'marketing');
 
     if (!hasRole) {
-      // Prevent URL tampering: redirect user strictly to their own role's dashboard
-      const authorizedHome = user.defaultRoute || getRoleDefaultRoute(user.role);
-      return <Navigate to={authorizedHome} replace />;
+      // Route user to their own role's home page
+      if (user.role === 'sales') {
+        return <Navigate to="/salesperson" replace />;
+      }
+      if (user.role === 'marketing') {
+        return <Navigate to="/marketing" replace />;
+      }
+      return <Navigate to={user.defaultRoute || '/dashboard'} replace />;
     }
   }
 

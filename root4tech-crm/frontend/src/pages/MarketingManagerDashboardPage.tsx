@@ -57,16 +57,12 @@ export const MarketingManagerDashboardPage: React.FC = () => {
   } = useCRM();
 
   const navigate = useNavigate();
-  const { user, logout } = useAuth();
+  const { logout } = useAuth();
 
   const handleLogout = () => {
     logout();
     navigate('/login');
   };
-
-  const currentManagerName = user?.name || marketingManager.name;
-  const currentManagerRole = user?.roleTitle || marketingManager.role;
-  const currentManagerInitials = user?.avatarInitials || 'AK';
 
   // Active Tab: 'overview' | 'clients' | 'tasks' | 'salary' | 'attendance'
   const [activeTab, setActiveTab] = useState<'overview' | 'clients' | 'tasks' | 'salary' | 'attendance'>('overview');
@@ -271,11 +267,11 @@ export const MarketingManagerDashboardPage: React.FC = () => {
             {/* Profile Avatar Pill */}
             <div className="flex items-center gap-2 pl-1 bg-slate-50 py-1 pr-3 rounded-full border border-slate-200">
               <div className="w-7 h-7 rounded-full bg-indigo-600 text-white flex items-center justify-center text-xs font-semibold">
-                {currentManagerInitials}
+                AK
               </div>
               <div className="text-left hidden md:block">
-                <p className="text-xs font-semibold text-slate-800 leading-tight">{currentManagerName}</p>
-                <p className="text-[10px] text-slate-500 leading-tight">{currentManagerRole}</p>
+                <p className="text-xs font-semibold text-slate-800 leading-tight">{marketingManager.name}</p>
+                <p className="text-[10px] text-slate-500 leading-tight">{marketingManager.role}</p>
               </div>
             </div>
 

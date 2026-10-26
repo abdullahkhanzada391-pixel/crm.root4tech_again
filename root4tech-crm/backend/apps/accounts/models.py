@@ -41,9 +41,7 @@ class User(AbstractBaseUser, PermissionsMixin):
         MARKETING_MANAGER = 'Marketing Manager', 'Marketing Manager'
         SALES_AGENT = 'Sales Agent', 'Sales Agent'
         DEVELOPER = 'Developer', 'Developer'
-        HR = 'HR', 'HR'
         VIDEO_EDITOR = 'Video Editor', 'Video Editor'
-        CUSTOM = 'Custom', 'Custom'
 
     full_name = models.CharField(max_length=255, verbose_name='Full Name')
     email = models.EmailField(unique=True, verbose_name='Email Address')
