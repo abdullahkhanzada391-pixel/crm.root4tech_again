@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import {
   Lead,
   Client,
@@ -6,8 +6,6 @@ import {
   Invoice,
   SalesRecord,
   Activity,
-  LeadStatus,
-  QuotationStatus,
   InvoiceStatus,
   PaidInvoicePdfAttachment,
   AttendanceRecord,
@@ -35,6 +33,42 @@ import {
   INITIAL_ONBOARDED_CLIENTS,
   INITIAL_MARKETING_TASKS
 } from '@/data/mockData';
+import {
+  checkSupabaseHealth,
+  fetchLeadsFromSupabase,
+  upsertLeadToSupabase,
+  deleteLeadFromSupabase,
+  deleteMultipleLeadsFromSupabase,
+  fetchClientsFromSupabase,
+  upsertClientToSupabase,
+  deleteClientFromSupabase,
+  fetchQuotationsFromSupabase,
+  upsertQuotationToSupabase,
+  deleteQuotationFromSupabase,
+  fetchInvoicesFromSupabase,
+  upsertInvoiceToSupabase,
+  deleteInvoiceFromSupabase,
+  fetchSalesRecordsFromSupabase,
+  upsertSalesRecordToSupabase,
+  fetchActivitiesFromSupabase,
+  addActivityToSupabase,
+  fetchAttendanceFromSupabase,
+  upsertAttendanceToSupabase,
+  fetchSalesTasksFromSupabase,
+  upsertSalesTaskToSupabase,
+  deleteSalesTaskFromSupabase,
+  fetchPersonalSalesFromSupabase,
+  upsertPersonalSaleToSupabase,
+  deletePersonalSaleFromSupabase,
+  fetchMarketingAttendanceFromSupabase,
+  upsertMarketingAttendanceToSupabase,
+  fetchOnboardedClientsFromSupabase,
+  upsertOnboardedClientToSupabase,
+  deleteOnboardedClientFromSupabase,
+  fetchMarketingTasksFromSupabase,
+  upsertMarketingTaskToSupabase,
+  deleteMarketingTaskFromSupabase
+} from '@/lib/supabase';
 
 interface CRMContextType {
   leads: Lead[];
@@ -68,6 +102,12 @@ interface CRMContextType {
   attachPaidPdfToInvoice: (invoiceId: string, attachment: PaidInvoicePdfAttachment) => void;
   removePaidPdfFromInvoice: (invoiceId: string) => void;
   resetToDefaults: () => void;
+
+  // Supabase Cloud State & Sync
+  isSupabaseConnected: boolean;
+  isSyncing: boolean;
+  supabaseLatencyMs: number | null;
+  syncWithSupabase: () => Promise<void>;
 
   // Salesperson portal state & methods
   salesPerson: SalesPersonProfile;
@@ -108,6 +148,10 @@ const CRMContext = createContext<CRMContextType | undefined>(undefined);
 const STORAGE_PREFIX = 'root4tech_crm_';
 
 export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const [isSupabaseConnected, setIsSupabaseConnected] = useState<boolean>(false);
+  const [isSyncing, setIsSyncing] = useState<boolean>(false);
+  const [supabaseLatencyMs, setSupabaseLatencyMs] = useState<number | null>(null);
+
   const [leads, setLeads] = useState<Lead[]>(() => {
     const saved = localStorage.getItem(`${STORAGE_PREFIX}leads`);
     return saved ? JSON.parse(saved) : INITIAL_LEADS;
@@ -149,7 +193,7 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return saved ? JSON.parse(saved) : INITIAL_ACTIVITIES;
   });
 
-  // Sync to local storage on changes
+  // Sync to local storage on changes (offline resilient caching)
   useEffect(() => {
     localStorage.setItem(`${STORAGE_PREFIX}leads`, JSON.stringify(leads));
   }, [leads]);
@@ -276,6 +320,75 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     localStorage.setItem(`${STORAGE_PREFIX}marketing_tasks`, JSON.stringify(marketingTasks));
   }, [marketingTasks]);
 
+  // ----------------------------------------------------
+  // Sync with Supabase Cloud Database
+  // ----------------------------------------------------
+  const syncWithSupabase = useCallback(async () => {
+    setIsSyncing(true);
+    try {
+      const health = await checkSupabaseHealth();
+      setIsSupabaseConnected(health.ok);
+      if (health.latencyMs !== undefined) {
+        setSupabaseLatencyMs(health.latencyMs);
+      }
+
+      if (!health.ok) {
+        setIsSyncing(false);
+        return;
+      }
+
+      const [
+        sbLeads,
+        sbClients,
+        sbQuotations,
+        sbInvoices,
+        sbSales,
+        sbActivities,
+        sbAttendance,
+        sbSalesTasks,
+        sbPersonalSales,
+        sbMktAttendance,
+        sbOnboarded,
+        sbMktTasks
+      ] = await Promise.all([
+        fetchLeadsFromSupabase(),
+        fetchClientsFromSupabase(),
+        fetchQuotationsFromSupabase(),
+        fetchInvoicesFromSupabase(),
+        fetchSalesRecordsFromSupabase(),
+        fetchActivitiesFromSupabase(),
+        fetchAttendanceFromSupabase(),
+        fetchSalesTasksFromSupabase(),
+        fetchPersonalSalesFromSupabase(),
+        fetchMarketingAttendanceFromSupabase(),
+        fetchOnboardedClientsFromSupabase(),
+        fetchMarketingTasksFromSupabase()
+      ]);
+
+      if (sbLeads && sbLeads.length > 0) setLeads(sbLeads);
+      if (sbClients && sbClients.length > 0) setClients(sbClients);
+      if (sbQuotations && sbQuotations.length > 0) setQuotations(sbQuotations);
+      if (sbInvoices && sbInvoices.length > 0) setInvoices(sbInvoices);
+      if (sbSales && sbSales.length > 0) setSalesRecords(sbSales);
+      if (sbActivities && sbActivities.length > 0) setActivities(sbActivities);
+      if (sbAttendance && sbAttendance.length > 0) setAttendanceRecords(sbAttendance);
+      if (sbSalesTasks && sbSalesTasks.length > 0) setSalesTasks(sbSalesTasks);
+      if (sbPersonalSales && sbPersonalSales.length > 0) setPersonalSales(sbPersonalSales);
+      if (sbMktAttendance && sbMktAttendance.length > 0) setMarketingAttendance(sbMktAttendance);
+      if (sbOnboarded && sbOnboarded.length > 0) setOnboardedClients(sbOnboarded);
+      if (sbMktTasks && sbMktTasks.length > 0) setMarketingTasks(sbMktTasks);
+    } catch (e) {
+      console.warn('Sync with Supabase encountered error; maintaining local state:', e);
+    } finally {
+      setIsSyncing(false);
+    }
+  }, []);
+
+  // Fetch initial data from Supabase on mount
+  useEffect(() => {
+    syncWithSupabase();
+  }, [syncWithSupabase]);
+
   const addActivity = (type: Activity['type'], title: string, description: string) => {
     const newAct: Activity = {
       id: `act-${Date.now()}`,
@@ -285,6 +398,7 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       timestamp: 'Just now'
     };
     setActivities(prev => [newAct, ...prev.slice(0, 19)]);
+    addActivityToSupabase(newAct);
   };
 
   // 1. Leads Handlers
@@ -295,6 +409,7 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       dateAdded: new Date().toISOString().split('T')[0]
     };
     setLeads(prev => [newLead, ...prev]);
+    upsertLeadToSupabase(newLead);
     addActivity('lead_added', 'New Lead Added', `${newLead.name} (${newLead.company}) added to CRM`);
   };
 
@@ -306,16 +421,23 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       dateAdded: new Date(Date.now() - idx * 86400000).toISOString().split('T')[0]
     }));
     setLeads(prev => [...newLeads, ...prev]);
+    newLeads.forEach(l => upsertLeadToSupabase(l));
     addActivity('lead_added', 'Bulk Leads Added', `Added ${newLeads.length} leads to CRM pipeline`);
   };
 
   const updateLead = (id: string, data: Partial<Lead>) => {
-    setLeads(prev => prev.map(l => (l.id === id ? { ...l, ...data } : l)));
+    setLeads(prev => {
+      const updated = prev.map(l => (l.id === id ? { ...l, ...data } : l));
+      const target = updated.find(l => l.id === id);
+      if (target) upsertLeadToSupabase(target);
+      return updated;
+    });
   };
 
   const deleteLead = (id: string) => {
     const targetLead = leads.find(l => l.id === id);
     setLeads(prev => prev.filter(l => l.id !== id));
+    deleteLeadFromSupabase(id);
     if (targetLead) {
       addActivity('lead_added', 'Lead Deleted Separately', `Lead "${targetLead.name}" (${targetLead.company}) was deleted individually from pipeline`);
     }
@@ -323,11 +445,14 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const deleteMultipleLeads = (ids: string[]) => {
     setLeads(prev => prev.filter(l => !ids.includes(l.id)));
+    deleteMultipleLeadsFromSupabase(ids);
     addActivity('lead_added', 'Leads Removed', `Removed ${ids.length} selected lead(s)`);
   };
 
   const clearAllLeads = () => {
+    const ids = leads.map(l => l.id);
     setLeads([]);
+    deleteMultipleLeadsFromSupabase(ids);
     addActivity('lead_added', 'All Leads Cleared', 'All previous leads were removed from the CRM');
   };
 
@@ -363,6 +488,7 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       dateAdded: new Date().toISOString().split('T')[0]
     };
     setClients(prev => [newClient, ...prev]);
+    upsertClientToSupabase(newClient);
     addActivity('client_created', 'Client Created', `${newClient.name} (${newClient.company}) converted from Lead to Client`);
     return newClient;
   };
@@ -375,15 +501,22 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       dateAdded: new Date().toISOString().split('T')[0]
     };
     setClients(prev => [newClient, ...prev]);
+    upsertClientToSupabase(newClient);
     addActivity('client_created', 'Client Created', `${newClient.name} (${newClient.company}) added to directory`);
   };
 
   const updateClient = (id: string, data: Partial<Client>) => {
-    setClients(prev => prev.map(c => (c.id === id ? { ...c, ...data } : c)));
+    setClients(prev => {
+      const updated = prev.map(c => (c.id === id ? { ...c, ...data } : c));
+      const target = updated.find(c => c.id === id);
+      if (target) upsertClientToSupabase(target);
+      return updated;
+    });
   };
 
   const deleteClient = (id: string) => {
     setClients(prev => prev.filter(c => c.id !== id));
+    deleteClientFromSupabase(id);
   };
 
   // 3. Quotations Handlers
@@ -396,6 +529,7 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       dateIssued: new Date().toISOString().split('T')[0]
     };
     setQuotations(prev => [newQuote, ...prev]);
+    upsertQuotationToSupabase(newQuote);
     addActivity('quotation_generated', 'Quotation Generated', `Proposal ${newQuote.quoteNumber} issued for ${newQuote.companyName} (PKR ${newQuote.amount.toLocaleString()})`);
     return newQuote;
   };
@@ -413,6 +547,7 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     });
 
     setQuotations(prev => [...createdList, ...prev]);
+    createdList.forEach(q => upsertQuotationToSupabase(q));
     const totalBatchAmount = createdList.reduce((s, q) => s + q.amount, 0);
     addActivity(
       'quotation_generated',
@@ -423,15 +558,22 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const updateQuotation = (id: string, data: Partial<Quotation>) => {
-    setQuotations(prev => prev.map(q => (q.id === id ? { ...q, ...data } : q)));
+    setQuotations(prev => {
+      const updated = prev.map(q => (q.id === id ? { ...q, ...data } : q));
+      const target = updated.find(q => q.id === id);
+      if (target) upsertQuotationToSupabase(target);
+      return updated;
+    });
   };
 
   const deleteQuotation = (id: string) => {
     setQuotations(prev => prev.filter(q => q.id !== id));
+    deleteQuotationFromSupabase(id);
   };
 
   const deleteMultipleQuotations = (ids: string[]) => {
     setQuotations(prev => prev.filter(q => !ids.includes(q.id)));
+    ids.forEach(id => deleteQuotationFromSupabase(id));
     addActivity('quotation_generated', 'Quotations Batch Removed', `Batch of ${ids.length} quotations removed from directory`);
   };
 
@@ -468,6 +610,7 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     };
 
     setInvoices(prev => [newInvoice, ...prev]);
+    upsertInvoiceToSupabase(newInvoice);
     addActivity('invoice_created', 'Invoice Created', `Invoice ${newInvoice.invoiceNumber} created from quotation for ${newInvoice.companyName} (PKR ${newInvoice.amount.toLocaleString()})`);
   };
 
@@ -481,12 +624,18 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       issueDate: new Date().toISOString().split('T')[0]
     };
     setInvoices(prev => [newInvoice, ...prev]);
+    upsertInvoiceToSupabase(newInvoice);
     addActivity('invoice_created', 'Invoice Created', `Invoice ${newInvoice.invoiceNumber} issued for ${newInvoice.companyName} (PKR ${newInvoice.amount.toLocaleString()})`);
     return newInvoice;
   };
 
   const updateInvoice = (id: string, data: Partial<Invoice>) => {
-    setInvoices(prev => prev.map(i => (i.id === id ? { ...i, ...data } : i)));
+    setInvoices(prev => {
+      const updated = prev.map(i => (i.id === id ? { ...i, ...data } : i));
+      const target = updated.find(i => i.id === id);
+      if (target) upsertInvoiceToSupabase(target);
+      return updated;
+    });
     const target = invoices.find(i => i.id === id);
     if (target) {
       addActivity('invoice_created', 'Invoice Updated', `Invoice ${target.invoiceNumber} (${data.companyName || target.companyName}) details were updated`);
@@ -497,7 +646,7 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const inv = invoices.find(i => i.id === invoiceId);
     if (!inv || inv.status === 'Paid') return;
 
-    updateInvoice(invoiceId, { status: 'Paid' });
+    updateInvoice(invoiceId, { status: 'Paid', paidDate: new Date().toISOString().split('T')[0] });
 
     const newSaleRecord: SalesRecord = {
       id: `sale-${Date.now()}`,
@@ -512,15 +661,19 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     };
 
     setSalesRecords(prev => [newSaleRecord, ...prev]);
+    upsertSalesRecordToSupabase(newSaleRecord);
 
     // Also update client totalBilled
-    setClients(prev =>
-      prev.map(c =>
+    setClients(prev => {
+      const updated = prev.map(c =>
         c.company.toLowerCase() === inv.companyName.toLowerCase()
           ? { ...c, totalBilled: (c.totalBilled || 0) + inv.amount }
           : c
-      )
-    );
+      );
+      const target = updated.find(c => c.company.toLowerCase() === inv.companyName.toLowerCase());
+      if (target) upsertClientToSupabase(target);
+      return updated;
+    });
 
     addActivity('invoice_paid', 'Payment Received', `Payment of PKR ${inv.amount.toLocaleString()} received for ${inv.invoiceNumber} (${inv.companyName})`);
   };
@@ -528,6 +681,7 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const deleteInvoice = (id: string) => {
     const target = invoices.find(i => i.id === id);
     setInvoices(prev => prev.filter(i => i.id !== id));
+    deleteInvoiceFromSupabase(id);
     if (target) {
       addActivity('invoice_created', 'Invoice Removed', `Invoice ${target.invoiceNumber} (${target.companyName}) was deleted`);
     }
@@ -538,6 +692,7 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       if (prev.some(i => i.id === invoice.id)) return prev;
       return [invoice, ...prev];
     });
+    upsertInvoiceToSupabase(invoice);
     addActivity('invoice_created', 'Invoice Restored', `Invoice ${invoice.invoiceNumber} (${invoice.companyName}) was restored from Undo`);
   };
 
@@ -547,17 +702,18 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     updateInvoice(invoiceId, { status: revertStatus });
 
-    // Remove matching sales record
     setSalesRecords(prev => prev.filter(s => s.invoiceNumber !== inv.invoiceNumber));
 
-    // Deduct from client totalBilled
-    setClients(prev =>
-      prev.map(c =>
+    setClients(prev => {
+      const updated = prev.map(c =>
         c.company.toLowerCase() === inv.companyName.toLowerCase()
           ? { ...c, totalBilled: Math.max(0, (c.totalBilled || 0) - inv.amount) }
           : c
-      )
-    );
+      );
+      const target = updated.find(c => c.company.toLowerCase() === inv.companyName.toLowerCase());
+      if (target) upsertClientToSupabase(target);
+      return updated;
+    });
 
     addActivity('invoice_created', 'Payment Reverted', `Payment for invoice ${inv.invoiceNumber} (${inv.companyName}) was reverted to ${revertStatus}`);
   };
@@ -603,6 +759,7 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       status: 'Active'
     };
     setAttendanceRecords(prev => [newRecord, ...prev]);
+    upsertAttendanceToSupabase(newRecord);
     addActivity('invoice_paid', 'Shift Started', `${salesPerson.name} clocked in at ${timeStr} for standard 10 AM - 6 PM shift`);
   };
 
@@ -624,6 +781,7 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           status: 'Completed',
           totalHours: '8h 00m'
         };
+        upsertAttendanceToSupabase(updated[activeIdx]);
       }
       return updated;
     });
@@ -640,16 +798,21 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       completed: false
     };
     setSalesTasks(prev => [newTask, ...prev]);
+    upsertSalesTaskToSupabase(newTask);
   };
 
   const toggleTask = (id: string) => {
-    setSalesTasks(prev =>
-      prev.map(t => (t.id === id ? { ...t, completed: !t.completed } : t))
-    );
+    setSalesTasks(prev => {
+      const updated = prev.map(t => (t.id === id ? { ...t, completed: !t.completed } : t));
+      const target = updated.find(t => t.id === id);
+      if (target) upsertSalesTaskToSupabase(target);
+      return updated;
+    });
   };
 
   const deleteTask = (id: string) => {
     setSalesTasks(prev => prev.filter(t => t.id !== id));
+    deleteSalesTaskFromSupabase(id);
   };
 
   const addPersonalSale = (saleData: Omit<SalesPersonSale, 'id' | 'commissionAmount'>) => {
@@ -660,8 +823,8 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       commissionAmount: commission
     };
     setPersonalSales(prev => [newSale, ...prev]);
+    upsertPersonalSaleToSupabase(newSale);
 
-    // Also reflect in company sales records so Admin has synced ledger
     const newSalesRecord: SalesRecord = {
       id: `rec-${Date.now()}`,
       recordNumber: `REC-${new Date().getFullYear()}-0${Math.floor(10 + Math.random() * 90)}`,
@@ -674,12 +837,14 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       paymentMethod: saleData.paymentMethod
     };
     setSalesRecords(prev => [newSalesRecord, ...prev]);
+    upsertSalesRecordToSupabase(newSalesRecord);
 
     addActivity('invoice_paid', 'Personal Sale Recorded', `${salesPerson.name} closed sale of PKR ${saleData.amount.toLocaleString()} (${saleData.companyName})`);
   };
 
   const deletePersonalSale = (id: string) => {
     setPersonalSales(prev => prev.filter(s => s.id !== id));
+    deletePersonalSaleFromSupabase(id);
   };
 
   // Marketing Manager Handlers
@@ -702,6 +867,7 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     };
 
     setMarketingAttendance(prev => [newRecord, ...prev]);
+    upsertMarketingAttendanceToSupabase(newRecord);
     addActivity('lead_added', 'Shift Started', `${marketingManager.name} (Marketing) clocked in at ${timeStr}`);
   };
 
@@ -723,6 +889,7 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           status: 'Completed',
           totalHours: '8h 00m'
         };
+        upsertMarketingAttendanceToSupabase(updated[activeIdx]);
       }
       return updated;
     });
@@ -737,23 +904,31 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       onboardingDate: new Date().toISOString().split('T')[0]
     };
     setOnboardedClients(prev => [newClient, ...prev]);
+    upsertOnboardedClientToSupabase(newClient);
     addActivity('client_created', 'Client Onboarded', `${clientData.companyName} (${clientData.campaignService}) onboarded by ${marketingManager.name}`);
   };
 
   const updateOnboardedClientRemarks = (id: string, remarks: string) => {
-    setOnboardedClients(prev =>
-      prev.map(c => (c.id === id ? { ...c, managerRemarks: remarks } : c))
-    );
+    setOnboardedClients(prev => {
+      const updated = prev.map(c => (c.id === id ? { ...c, managerRemarks: remarks } : c));
+      const target = updated.find(c => c.id === id);
+      if (target) upsertOnboardedClientToSupabase(target);
+      return updated;
+    });
   };
 
   const updateOnboardedClientStatus = (id: string, status: OnboardedClient['status']) => {
-    setOnboardedClients(prev =>
-      prev.map(c => (c.id === id ? { ...c, status } : c))
-    );
+    setOnboardedClients(prev => {
+      const updated = prev.map(c => (c.id === id ? { ...c, status } : c));
+      const target = updated.find(c => c.id === id);
+      if (target) upsertOnboardedClientToSupabase(target);
+      return updated;
+    });
   };
 
   const deleteOnboardedClient = (id: string) => {
     setOnboardedClients(prev => prev.filter(c => c.id !== id));
+    deleteOnboardedClientFromSupabase(id);
   };
 
   const addMarketingTask = (taskData: Omit<MarketingTask, 'id' | 'completed'>) => {
@@ -763,30 +938,38 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       completed: false
     };
     setMarketingTasks(prev => [newTask, ...prev]);
+    upsertMarketingTaskToSupabase(newTask);
   };
 
   const toggleMarketingTask = (id: string) => {
-    setMarketingTasks(prev =>
-      prev.map(t =>
+    setMarketingTasks(prev => {
+      const updated = prev.map(t =>
         t.id === id
           ? {
               ...t,
               completed: !t.completed,
-              status: !t.completed ? 'Completed' : 'In Progress'
+              status: (!t.completed ? 'Completed' : 'In Progress') as 'Completed' | 'In Progress'
             }
           : t
-      )
-    );
+      );
+      const target = updated.find(t => t.id === id);
+      if (target) upsertMarketingTaskToSupabase(target);
+      return updated;
+    });
   };
 
   const updateMarketingTaskRemarks = (id: string, remarks: string) => {
-    setMarketingTasks(prev =>
-      prev.map(t => (t.id === id ? { ...t, managerRemarks: remarks } : t))
-    );
+    setMarketingTasks(prev => {
+      const updated = prev.map(t => (t.id === id ? { ...t, managerRemarks: remarks } : t));
+      const target = updated.find(t => t.id === id);
+      if (target) upsertMarketingTaskToSupabase(target);
+      return updated;
+    });
   };
 
   const deleteMarketingTask = (id: string) => {
     setMarketingTasks(prev => prev.filter(t => t.id !== id));
+    deleteMarketingTaskFromSupabase(id);
   };
 
   const resetToDefaults = () => {
@@ -843,6 +1026,12 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         attachPaidPdfToInvoice,
         removePaidPdfFromInvoice,
         resetToDefaults,
+
+        // Supabase Cloud State & Sync
+        isSupabaseConnected,
+        isSyncing,
+        supabaseLatencyMs,
+        syncWithSupabase,
 
         // Salesperson Portal
         salesPerson,

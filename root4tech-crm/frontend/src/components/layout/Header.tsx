@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
-import { Menu, Search, Calendar } from 'lucide-react';
+import { Menu, Search, Calendar, Database, RefreshCw } from 'lucide-react';
 import { CommandPalette } from '@/components/CommandPalette';
 import { NotificationCenter } from '@/components/NotificationCenter';
+import { useCRM } from '@/context/CRMContext';
 
 interface HeaderProps {
   onToggleMobileMenu: () => void;
@@ -11,6 +12,7 @@ interface HeaderProps {
 export const Header: React.FC<HeaderProps> = ({ onToggleMobileMenu }) => {
   const location = useLocation();
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
+  const { isSupabaseConnected, isSyncing, syncWithSupabase } = useCRM();
 
   // Global Ctrl+K / Cmd+K shortcut listener
   useEffect(() => {
@@ -75,13 +77,29 @@ export const Header: React.FC<HeaderProps> = ({ onToggleMobileMenu }) => {
           </div>
         </div>
 
-        {/* Top Right Utilities: Search, Calendar, and Notification Center */}
-        <div className="flex items-center gap-3 sm:gap-4">
+        {/* Top Right Utilities: Search, Calendar, Supabase Status, and Notification Center */}
+        <div className="flex items-center gap-2 sm:gap-3">
+          {/* Supabase Cloud Live Connection Status */}
+          <button
+            type="button"
+            onClick={() => syncWithSupabase()}
+            title={isSupabaseConnected ? 'Connected to Supabase PostgreSQL (Click to sync)' : 'Reconnecting to Supabase...'}
+            className={`hidden min-[500px]:flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border text-xs font-medium transition cursor-pointer active:scale-95 ${
+              isSupabaseConnected
+                ? 'bg-emerald-50 text-emerald-700 border-emerald-200/80 hover:bg-emerald-100'
+                : 'bg-amber-50 text-amber-700 border-amber-200/80 hover:bg-amber-100'
+            }`}
+          >
+            <Database className="w-3.5 h-3.5 shrink-0" />
+            <span className="hidden md:inline">{isSupabaseConnected ? 'Supabase Connected' : 'Supabase Syncing'}</span>
+            <RefreshCw className={`w-3 h-3 shrink-0 ${isSyncing ? 'animate-spin' : ''}`} />
+          </button>
+
           {/* Search bar trigger */}
           <button
             type="button"
             onClick={() => setIsCommandPaletteOpen(true)}
-            className="flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 py-1.5 rounded-xl bg-slate-50 hover:bg-slate-100 border border-slate-200/80 text-xs text-slate-500 cursor-pointer transition sm:w-56 md:w-64 shadow-2xs group active:scale-95"
+            className="flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 py-1.5 rounded-xl bg-slate-50 hover:bg-slate-100 border border-slate-200/80 text-xs text-slate-500 cursor-pointer transition sm:w-48 md:w-56 shadow-2xs group active:scale-95"
             title="Search... (Ctrl+K)"
             aria-label="Open Omnisearch"
           >
@@ -91,7 +109,7 @@ export const Header: React.FC<HeaderProps> = ({ onToggleMobileMenu }) => {
           </button>
 
           {/* Calendar Badge */}
-          <div className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-50 border border-slate-200/80 text-xs text-slate-600 font-medium">
+          <div className="hidden lg:flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-50 border border-slate-200/80 text-xs text-slate-600 font-medium">
             <Calendar className="w-4 h-4 text-blue-600" />
             <span>{formattedDate}</span>
           </div>
@@ -109,4 +127,3 @@ export const Header: React.FC<HeaderProps> = ({ onToggleMobileMenu }) => {
     </>
   );
 };
-

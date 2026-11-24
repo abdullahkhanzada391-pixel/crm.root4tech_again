@@ -1,6 +1,11 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { AuthUser, UserRole, UserAccount } from '@/types/crm';
 import { INITIAL_USERS } from '@/data/mockData';
+import {
+  fetchUsersFromSupabase,
+  upsertUserToSupabase,
+  deleteUserFromSupabase
+} from '@/lib/supabase';
 
 interface AuthContextType {
   user: AuthUser | null;
@@ -34,6 +39,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
     return INITIAL_USERS;
   });
+
+  // Fetch users from Supabase on mount
+  useEffect(() => {
+    fetchUsersFromSupabase().then(sbUsers => {
+      if (sbUsers && sbUsers.length > 0) {
+        setUsers(sbUsers);
+      }
+    });
+  }, []);
 
   useEffect(() => {
     localStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(users));
@@ -124,13 +138,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return false;
     }
 
-    setUsers(prev =>
-      prev.map(u => (u.id === userId ? { ...u, password: newPassword.trim() } : u))
-    );
+    const trimmed = newPassword.trim();
+    setUsers(prev => {
+      const updated = prev.map(u => (u.id === userId ? { ...u, password: trimmed } : u));
+      const target = updated.find(u => u.id === userId);
+      if (target) {
+        upsertUserToSupabase(target);
+      }
+      return updated;
+    });
 
     // If current logged-in user changed their own password, update session
     if (user && user.id === userId) {
-      setUser(prev => (prev ? { ...prev } : null));
+      setUser(prev => (prev ? { ...prev, password: trimmed } : null));
     }
 
     return true;
@@ -138,9 +158,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   // Update User Details
   const updateUserProfile = (userId: string, data: Partial<UserAccount>): boolean => {
-    setUsers(prev =>
-      prev.map(u => (u.id === userId ? { ...u, ...data } : u))
-    );
+    setUsers(prev => {
+      const updated = prev.map(u => (u.id === userId ? { ...u, ...data } : u));
+      const target = updated.find(u => u.id === userId);
+      if (target) {
+        upsertUserToSupabase(target);
+      }
+      return updated;
+    });
     if (user && user.id === userId) {
       setUser(prev => (prev ? { ...prev, ...data } : null));
     }
@@ -154,6 +179,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       id: `usr-${Date.now()}`
     };
     setUsers(prev => [...prev, userWithId]);
+    upsertUserToSupabase(userWithId);
     return true;
   };
 
@@ -161,6 +187,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const deleteUser = (userId: string): boolean => {
     if (users.length <= 1) return false; // Prevent deleting all users
     setUsers(prev => prev.filter(u => u.id !== userId));
+    deleteUserFromSupabase(userId);
     return true;
   };
 
@@ -168,6 +195,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const resetUsersToDefaults = () => {
     setUsers(INITIAL_USERS);
     localStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(INITIAL_USERS));
+    INITIAL_USERS.forEach(u => upsertUserToSupabase(u));
   };
 
   return (
